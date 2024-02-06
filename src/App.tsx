@@ -1,16 +1,22 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import './App.css';
-import { Table, Button, Flex, DatePicker, Modal, Form, Input  } from 'antd';
+import { Table, Button, Flex, DatePicker, Form  } from 'antd';
 import type { TableProps  } from 'antd';
 import Search from 'antd/es/input/Search';
 import Header from './components/Header';
 import DeleteUserModal from './components/DeleteModal';
 import UserModal from './components/UserModal';
+import axios from 'axios';
 
 const { RangePicker } = DatePicker;
 
-function App() {
+const axiosInstance = axios.create({
+  baseURL: 'http://localhost:8000',
+});
 
+function App() {
+  
+  // tipagem de usuário
   interface UserTypes {
     id: number;
     name: string;
@@ -21,6 +27,7 @@ function App() {
     deleted_at: any;
   }
   
+  // fomatar data
   const formatJsDate = (timestamp: any) => {
     if (!timestamp) return 'N/A';
   
@@ -32,6 +39,7 @@ function App() {
     return `${day}/${month}/${year}`;
   };
   
+  // EXTRUTURA DA TABELA
   const columns: TableProps<UserTypes>['columns'] = [
     {
       title: 'Id',
@@ -95,32 +103,78 @@ function App() {
     }
   
   ]
-  
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [editingUser, setEditingUser] = useState({});
-  const [selectedDate, setSelectedDate] = useState(null);
 
-  const handleDatePickerChange = (date: any, dateString: any) => {
-    setSelectedDate(dateString);
-    console.log(date,dateString);
+  // atualizar tabela
+  const fetchUsers = async () => {
+    try {
+      const response = await axiosInstance.get('/api/users');
+      setData(response.data);
+    } catch (error) {
+      console.error('Erro ao buscar usuários:', error);
+    }
   };
 
+  // useEffect para atualização
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  // STATES para os modals
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [data, setData] = useState([]);
+
   const [form] = Form.useForm();
-  
+  const [userId, setUserId] = useState(0);
+
+  // carregar modal de criação de usuário
   const showModalForCreate = () => {
     setIsModalVisible(true);
     setIsEditMode(false);
     form.resetFields();
   };
 
+  // carregar modal de editar usuário
   const showModalForEdit = (user: UserTypes) => {
     setIsModalVisible(true);
     setIsEditMode(true);
-    setEditingUser(user); 
+    setUserId(user.id);
     form.setFieldsValue(user);
   };
 
+
+  // botão de cancelar
+  const handleCancel = () => {
+    setUserId(0);
+    setIsModalVisible(false);
+  };
+
+  // criar / update no user
+  const handleOk = async (values: UserTypes) => {
+    console.log(values)
+    try {
+      const values = await form.validateFields(); // Obtenha os valores dos campos do formulário
+      form.resetFields();
+      setIsModalVisible(false);
+      if (isEditMode) {
+        if (userId === 0) { return }
+        values.id = userId;
+        const response = await axios.post('http://localhost:8000/api/update', values);
+        console.log('Dados enviados com sucesso:', response.data);
+        await fetchUsers();
+        console.log('Dados do usuário editado:', values);
+      } else {
+        const response = await axios.post('http://localhost:8000/api/endpoint', values);
+        console.log('Dados enviados com sucesso:', response.data);
+        await fetchUsers();
+      }
+    } catch (error) {
+      console.error('Erro ao enviar dados para o backend:', error);
+    }
+  };
+  
+  // deletar usuário
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
 
   const handleDelete = () => {
@@ -128,63 +182,19 @@ function App() {
     setDeleteModalVisible(false);
   };
 
-  const handleCancel = () => {
-    setIsModalVisible(false);
-  };
-
-  const handleOk = () => {
-    form.validateFields().then(values => {
-      form.resetFields();
-      setIsModalVisible(false);
-      if (isEditMode) {
-        // Lógica para edição de usuário
-        console.log('Dados do usuário editado:', values);
-      } else {
-        // Lógica para criação de usuário
-        console.log('Dados do novo usuário:', values);
-      }
-    }).catch(errorInfo => {
-      console.log('Erro ao validar campos:', errorInfo);
-    });
-  };
+  // filtragem por nome / data / período
 
   function onChangeInputName(value: string) {
     console.log(value);
   }
 
-  const data: UserTypes[] = [
-    {
-      id: 1,
-      name: 'John Brown',
-      phone: '(43) 984244218',
-      mail: 'contato.caduh@hotmail.com',
-      created_at: 1634443345000,
-      updated_at: 163333346000,
-      deleted_at: null,
-    },
-    {
-      id: 2,
-      name: 'Alice Johnson',
-      phone: '(52) 987654321',
-      mail: 'alice.j@example.com',
-      created_at: 163311345000,
-      updated_at: 1633545346000,
-      deleted_at: null,
-    },
-    {
-      id: 3,
-      name: 'Bob Smith',
-      phone: '(11) 555555555',
-      mail: 'bob.smith@example.com',
-      created_at: 1633340000,
-      updated_at: 1633341000,
-      deleted_at: null,
-    },
-    
-  ]
+  const handleDatePickerChange = (date: any, dateString: any) => {
+    setSelectedDate(dateString);
+  };
 
   return (
     <div className="App">
+      {/* Extrutura base */}
       <Header></Header>
       <div style={{ display: 'flex', flexDirection: 'column', margin: 50, gap: 25}}>
         <Flex style={{ justifyContent: 'space-between'}} gap="small" wrap="wrap">
@@ -199,9 +209,11 @@ function App() {
             />
           </Flex>
         </Flex>
+        {/* Carregar tabela de usuários */}
         <Table columns={columns} dataSource={data} />
       </div>
-
+      
+      {/* Criação dos modals, aguardando serem chamados à exibição */}
       <UserModal
         isEditMode={isEditMode}
         isModalVisible={isModalVisible}
