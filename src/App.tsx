@@ -89,16 +89,10 @@ function App() {
       render: (text) => formatJsDate(text),
     },
     {
-      title: 'Deletado em',
-      dataIndex: 'deleted_at',
-      key: 'deleted_at',
-      render: (text) => (text ? formatJsDate(text) : 'N/A'),
-    },
-    {
       title: "Ações",
       render: (value: any, record: UserTypes) => <div style={{display: 'flex', flexDirection: 'row', gap: 5}}>
         <Button type="primary" onClick={ () => showModalForEdit(record)}>Editar</Button>
-        <Button onClick={ () => setDeleteModalVisible(true)}>Deletar</Button>
+        <Button onClick={ () => tryDeleteUser(record)}>Deletar</Button>
       </div>
     }
   
@@ -118,6 +112,7 @@ function App() {
   useEffect(() => {
     fetchUsers();
   }, []);
+  
 
   // STATES para os modals
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -148,6 +143,7 @@ function App() {
   const handleCancel = () => {
     setUserId(0);
     setIsModalVisible(false);
+    setIsEditMode(false);
   };
 
   // criar / update no user
@@ -177,10 +173,17 @@ function App() {
   // deletar usuário
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
 
-  const handleDelete = () => {
-    console.log('Usuário deletado!');
+  const handleDelete = async () => {
+    const response = await axios.post('http://localhost:8000/api/delete', { id: userId });
+    await fetchUsers();
     setDeleteModalVisible(false);
+    setUserId(0);
   };
+
+  const tryDeleteUser = async(values: UserTypes) => {
+    setDeleteModalVisible(true)
+    setUserId(values.id)
+  }
 
   // filtragem por nome / data / período
 
