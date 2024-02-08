@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import './App.css';
-import { Table, Button, Flex, DatePicker, Form  } from 'antd';
-import type { TableProps  } from 'antd';
+import { Table, Button, Flex, DatePicker, Form } from 'antd';
+import type { TableProps } from 'antd';
 import Search from 'antd/es/input/Search';
 import Header from './components/Header';
 import DeleteUserModal from './components/DeleteModal';
@@ -15,7 +15,7 @@ const axiosInstance = axios.create({
 });
 
 function App() {
-  
+
   // tipagem de usuário
   interface UserTypes {
     id: number;
@@ -26,19 +26,19 @@ function App() {
     updated_at: any;
     deleted_at: any;
   }
-  
+
   // fomatar data
   const formatJsDate = (timestamp: any) => {
     if (!timestamp) return 'N/A';
-  
+
     const date = new Date(timestamp);
     const day = date.getDate().toString().padStart(2, '0');
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
     const year = date.getFullYear();
-  
+
     return `${day}/${month}/${year}`;
   };
-  
+
 
   // EXTRUTURA DA TABELA
   const columns: TableProps<UserTypes>['columns'] = [
@@ -91,14 +91,14 @@ function App() {
     },
     {
       title: "Ações",
-      render: (value: any, record: UserTypes) => <div style={{display: 'flex', flexDirection: 'row', gap: 5}}>
-        <Button type="primary" onClick={ () => showModalForEdit(record)}>Editar</Button>
-        <Button onClick={ () => tryDeleteUser(record)}>Deletar</Button>
+      render: (value: any, record: UserTypes) => <div style={{ display: 'flex', flexDirection: 'row', gap: 5 }}>
+        <Button type="primary" onClick={() => showModalForEdit(record)}>Editar</Button>
+        <Button onClick={() => tryDeleteUser(record)}>Deletar</Button>
       </div>
     }
-  
+
   ]
-  
+
   // STATES para os modals
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -107,6 +107,8 @@ function App() {
   const [data, setData] = useState([]);
   const [userId, setUserId] = useState(0);
   const [form] = Form.useForm();
+  const [inputName, setInputName] = useState('');
+  const [inputDate, setInputDate] = useState('');
 
   // atualizar tabela inicial
   const fetchUsers = async () => {
@@ -138,7 +140,7 @@ function App() {
   };
 
   // carregar o modal de deletar usuário
-  const tryDeleteUser = async(values: UserTypes) => {
+  const tryDeleteUser = async (values: UserTypes) => {
     setDeleteModalVisible(true)
     setUserId(values.id)
   }
@@ -172,7 +174,7 @@ function App() {
       console.error('Erro ao enviar dados para o backend:', error);
     }
   };
-  
+
   // deletar usuário
   const handleDelete = async () => {
     const response = await axios.post('http://localhost:8000/api/delete', { id: userId });
@@ -182,34 +184,54 @@ function App() {
     setUserId(0);
   };
 
-  // filtragem por nome / data / período
-
+  // filtro
   const onChangeInputName = async (value: string) => {
     try {
-      const url = `http://localhost:8000/api/search/${value}`
-      console.log(url)
+      const url = `http://localhost:8000/api/search/${encodeURIComponent(value.trim())}`;
+      console.log(url);
       const response = await axios.get(url);
-      console.log(response.data)
+      console.log(response.data);
       setData(response.data);
     } catch (error) {
       console.error('Erro ao enviar solicitação de filtro:', error);
     }
   }
-
-  const handleDatePickerChange = (date: any, dateString: any) => {
-    setSelectedDate(dateString);
+  
+  const handleDatePickerChange = async (date: any, dateString: any) => {
+    try {
+      let url = 'http://localhost:8000/api/search';
+      
+      if (dateString && dateString[0]) {
+        url += `/${new Date(dateString[0]).getTime()}`;
+      }
+      if (dateString && dateString[1]) {
+        url += `+${new Date(dateString[1]).getTime()}`;
+      }
+  
+      if (inputName.trim()) {
+        url += `/${encodeURIComponent(inputName.trim())}`;
+      }
+  
+      console.log('URL:', url);
+  
+      const response = await axios.get(url);
+      setData(response.data);
+    } catch (error) {
+      console.error('Erro ao enviar solicitação de filtro:', error);
+    }
   };
+  
 
   return (
     <div className="App">
       {/* Extrutura base */}
       <Header></Header>
-      <div style={{ display: 'flex', flexDirection: 'column', margin: 50, gap: 25}}>
-        <Flex style={{ justifyContent: 'space-between'}} gap="small" wrap="wrap">
+      <div style={{ display: 'flex', flexDirection: 'column', margin: 50, gap: 25 }}>
+        <Flex style={{ justifyContent: 'space-between' }} gap="small" wrap="wrap">
           <Button onClick={showModalForCreate} type="primary">Criar Usuário</Button>
-          <Flex style={{justifyContent: 'center'}} gap="small" wrap="wrap">
+          <Flex style={{ justifyContent: 'center' }} gap="small" wrap="wrap">
             {/* Filtros */}
-            <Search style={{ width: 300 }} size="middle" placeholder="Pesquisar Usuário" onChange={ (e) => onChangeInputName(e.target.value)} />
+            <Search style={{ width: 300 }} size="middle" placeholder="Pesquisar Usuário" onChange={(e) => onChangeInputName(e.target.value)} />
             <RangePicker
               format="DD/MM/YYYY"
               onChange={(date, dateString) => handleDatePickerChange(date, dateString)}
@@ -221,7 +243,7 @@ function App() {
         {/* Carregar tabela de usuários */}
         <Table columns={columns} dataSource={data} />
       </div>
-      
+
       {/* Criação dos modals, aguardando serem chamados à exibição */}
       <UserModal
         isEditMode={isEditMode}
