@@ -39,6 +39,7 @@ function App() {
     return `${day}/${month}/${year}`;
   };
   
+
   // EXTRUTURA DA TABELA
   const columns: TableProps<UserTypes>['columns'] = [
     {
@@ -97,31 +98,29 @@ function App() {
     }
   
   ]
+  
+  // STATES para os modals
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [data, setData] = useState([]);
+  const [userId, setUserId] = useState(0);
+  const [form] = Form.useForm();
 
-  // atualizar tabela
+  // atualizar tabela inicial
   const fetchUsers = async () => {
     try {
-      const response = await axiosInstance.get('/api/users');
+      const response = await axiosInstance.get('/api/search');
       setData(response.data);
     } catch (error) {
       console.error('Erro ao buscar usuários:', error);
     }
   };
 
-  // useEffect para atualização
   useEffect(() => {
     fetchUsers();
   }, []);
-  
-
-  // STATES para os modals
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(null);
-  const [data, setData] = useState([]);
-
-  const [form] = Form.useForm();
-  const [userId, setUserId] = useState(0);
 
   // carregar modal de criação de usuário
   const showModalForCreate = () => {
@@ -138,8 +137,13 @@ function App() {
     form.setFieldsValue(user);
   };
 
+  // carregar o modal de deletar usuário
+  const tryDeleteUser = async(values: UserTypes) => {
+    setDeleteModalVisible(true)
+    setUserId(values.id)
+  }
 
-  // botão de cancelar
+  // cancelar o modal
   const handleCancel = () => {
     setUserId(0);
     setIsModalVisible(false);
@@ -148,7 +152,6 @@ function App() {
 
   // criar / update no user
   const handleOk = async (values: UserTypes) => {
-    console.log(values)
     try {
       const values = await form.validateFields(); // Obtenha os valores dos campos do formulário
       form.resetFields();
@@ -171,24 +174,26 @@ function App() {
   };
   
   // deletar usuário
-  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
-
   const handleDelete = async () => {
     const response = await axios.post('http://localhost:8000/api/delete', { id: userId });
-    await fetchUsers();
+    console.log('Dados deletados com sucesso:', response.data);
     setDeleteModalVisible(false);
+    fetchUsers();
     setUserId(0);
   };
 
-  const tryDeleteUser = async(values: UserTypes) => {
-    setDeleteModalVisible(true)
-    setUserId(values.id)
-  }
-
   // filtragem por nome / data / período
 
-  function onChangeInputName(value: string) {
-    console.log(value);
+  const onChangeInputName = async (value: string) => {
+    try {
+      const url = `http://localhost:8000/api/search/${value}`
+      console.log(url)
+      const response = await axios.get(url);
+      console.log(response.data)
+      setData(response.data);
+    } catch (error) {
+      console.error('Erro ao enviar solicitação de filtro:', error);
+    }
   }
 
   const handleDatePickerChange = (date: any, dateString: any) => {
@@ -203,6 +208,7 @@ function App() {
         <Flex style={{ justifyContent: 'space-between'}} gap="small" wrap="wrap">
           <Button onClick={showModalForCreate} type="primary">Criar Usuário</Button>
           <Flex style={{justifyContent: 'center'}} gap="small" wrap="wrap">
+            {/* Filtros */}
             <Search style={{ width: 300 }} size="middle" placeholder="Pesquisar Usuário" onChange={ (e) => onChangeInputName(e.target.value)} />
             <RangePicker
               format="DD/MM/YYYY"
