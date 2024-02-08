@@ -7,6 +7,7 @@ import Header from './components/Header';
 import DeleteUserModal from './components/DeleteModal';
 import UserModal from './components/UserModal';
 import axios from 'axios';
+import moment from 'moment';
 
 const { RangePicker } = DatePicker;
 
@@ -102,7 +103,6 @@ function App() {
   // STATES para os modals
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(null);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [data, setData] = useState([]);
   const [userId, setUserId] = useState(0);
@@ -184,43 +184,40 @@ function App() {
     setUserId(0);
   };
 
-  // filtro
-  const onChangeInputName = async (value: string) => {
+  const onChangeFilter = async (name?: string, dates?: any) => {
     try {
-      const url = `http://localhost:8000/api/search/${encodeURIComponent(value.trim())}`;
+      setInputName(name?.trim() || '');
+      
+      let url = `http://localhost:8000/api/search/${encodeURIComponent(name?.trim() || '')}`;
+  
+      if (dates && Array.isArray(dates) && dates.length === 2) {
+        console.log('entrou na date')
+        const [startDate, endDate] = dates;
+  
+        console.log('startDate:', startDate);
+        console.log('endDate:', endDate);
+        
+        // Corrigindo a conversão de data para o formato 'YYYY-MM-DD'
+        const startDateMoment = moment(startDate, 'DD/MM/YYYY');
+        const endDateMoment = moment(endDate, 'DD/MM/YYYY');
+        
+        // Verifica se as datas são válidas antes de formatá-las
+        const startDateFormatted = startDateMoment.isValid() ? startDateMoment.format('YYYY-MM-DD') : undefined;
+        const endDateFormatted = endDateMoment.isValid() ? endDateMoment.format('YYYY-MM-DD') : undefined;
+        
+        // Construindo a string convertida
+        const convert_date = `${startDateFormatted || ''}+${endDateFormatted || ''}`;
+        setInputDate(convert_date)
+        url += `+${convert_date}`;
+      }
+  
       console.log(url);
       const response = await axios.get(url);
-      console.log(response.data);
       setData(response.data);
     } catch (error) {
       console.error('Erro ao enviar solicitação de filtro:', error);
     }
-  }
-  
-  const handleDatePickerChange = async (date: any, dateString: any) => {
-    try {
-      let url = 'http://localhost:8000/api/search';
-      
-      if (dateString && dateString[0]) {
-        url += `/${new Date(dateString[0]).getTime()}`;
-      }
-      if (dateString && dateString[1]) {
-        url += `+${new Date(dateString[1]).getTime()}`;
-      }
-  
-      if (inputName.trim()) {
-        url += `/${encodeURIComponent(inputName.trim())}`;
-      }
-  
-      console.log('URL:', url);
-  
-      const response = await axios.get(url);
-      setData(response.data);
-    } catch (error) {
-      console.error('Erro ao enviar solicitação de filtro:', error);
-    }
-  };
-  
+  };  
 
   return (
     <div className="App">
@@ -231,10 +228,10 @@ function App() {
           <Button onClick={showModalForCreate} type="primary">Criar Usuário</Button>
           <Flex style={{ justifyContent: 'center' }} gap="small" wrap="wrap">
             {/* Filtros */}
-            <Search style={{ width: 300 }} size="middle" placeholder="Pesquisar Usuário" onChange={(e) => onChangeInputName(e.target.value)} />
+            <Search style={{ width: 300 }} size="middle" placeholder="Pesquisar Usuário" onChange={(e) => onChangeFilter(e.target.value, inputDate)} />
             <RangePicker
               format="DD/MM/YYYY"
-              onChange={(date, dateString) => handleDatePickerChange(date, dateString)}
+              onChange={(date, dateString) => onChangeFilter(inputName, dateString)}
               placeholder={['Data Inicial', 'Data Final']}
               allowEmpty={[true, true]}
             />

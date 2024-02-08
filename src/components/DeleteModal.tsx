@@ -1,4 +1,3 @@
-import React, { useState } from 'react';
 import { Modal, Button } from 'antd';
 
 const DeleteUserModal = ({ visible, onCancel, onConfirm }: any) => {
